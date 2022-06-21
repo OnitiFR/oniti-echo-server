@@ -1,6 +1,9 @@
 # Oniti Echo Server
 
-Serveur d'événements SSE pour les application Laravel vlank
+SSE event server for Laravel "vlank" applications
 
-## Téléchargement
+## Download
 `go install github.com/OnitiFR/oniti-echo-server@latest`
+
+## Run (dev)
+`go install && oniti-echo-server`

@@ -7,8 +7,6 @@ import (
 
 const Version = "0.0.1"
 
-var ListenPort string
-
 func main() {
 	port := flag.Int("p", 8888, "listening port")
 	version := flag.Bool("v", false, "show version")
@@ -19,8 +17,10 @@ func main() {
 		return
 	}
 
-	ListenPort = fmt.Sprintf("localhost:%d", *port)
+	listenPort := fmt.Sprintf("localhost:%d", *port)
 
-	fmt.Printf("listening on http://%s/\n", ListenPort)
-	StartServer()
+	fmt.Printf("listening on http://%s/\n", listenPort)
+
+	srv := NewServer(listenPort, "http://localhost:8000/broadcasting/auth")
+	srv.Run()
 }
