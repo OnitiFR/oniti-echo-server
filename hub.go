@@ -44,12 +44,14 @@ func (h *Hub) Run() {
 				fmt.Printf("client %s not found\n", client.key)
 			}
 		case event := <-h.events:
-			fmt.Printf("event %s on %s…\n", event.Payload.Event, event.ChannelName)
+			fmt.Printf("on %s…\n", event.ChannelName)
 			for _, client := range h.clients {
 				if client.channelName == event.ChannelName {
 					// TODO: if not self
-					fmt.Printf("…to client %s\n", client.key)
-					client.ch <- event
+					if client.sid != event.Socket {
+						fmt.Printf("…to client %s\n", client.key)
+						client.ch <- event
+					}
 				}
 			}
 			fmt.Printf("event end.\n")

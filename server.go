@@ -74,7 +74,8 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	channelName := req.FormValue("channel_name")
 	sid := req.FormValue("sid")
@@ -176,20 +177,21 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 
 // serveEvent allow to broadcast an event
 func (srv *Server) serveEvent(w http.ResponseWriter, req *http.Request) {
-	/*if req.Method != "POST" {
+	if req.Method != "POST" {
 		http.Error(w, "Method not allowed", 405)
 		return
-	}*/
+	}
 
 	// req.FormValue
 
 	// curl -I http://localhost:8080/event
-	fmt.Println("publishing test event")
+	fmt.Printf("%+v\n", req.FormValue("ChannelName"))
 	ev := &Event{
-		ChannelName: "private-vlank-collection-crud-roles",
+		ChannelName: req.Form.Get("ChannelName"),
+		Socket:      req.Form.Get("socket"),
 		Payload: Payload{
-			Event: "TestEvent",
-			Data:  "TestData",
+			Data:  req.Form.Get("payload"),
+			Event: req.Form.Get("event"),
 		},
 	}
 	srv.Hub.Publish(ev)
