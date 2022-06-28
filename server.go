@@ -14,45 +14,17 @@ type Server struct {
 	ListenPort     string
 	LaravelAuthURL string
 	Hub            *Hub
+	ApiKey         string
 }
 
 // NewServer creates a new Server
-func NewServer(listenPort string, laravelAuthURL string) *Server {
+func NewServer(listenPort string, laravelAuthURL string, apiKey string) *Server {
 	return &Server{
 		ListenPort:     listenPort,
 		LaravelAuthURL: laravelAuthURL,
 		Hub:            NewHub(),
+		ApiKey:         apiKey,
 	}
-}
-
-// serveRoot returns a sample test page
-func (srv *Server) serveRoot(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
-		return
-	}
-
-	str := `
-	<!DOCTYPE html>
-	<html>
-		<head>
-			<title>SSE</title>
-		</head>
-		<body>
-			<h1>SSE</h1>
-			<script>
-				// créer un sid
-				var sid = (Math.random() + 1).toString(36).substring(7);
-				var source = new EventSource("/sse?channel_name=private-vlank-collection-crud-roles&sid=" + sid, { withCredentials: true })
-				source.addEventListener("private-vlank-collection-crud-roles", (ev) => { console.log(ev) })
-			</script>
-		</body>
-	</html>
-	`
-
-	w.Header().Set("Content-Type", "text/html")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Write([]byte(str))
 }
 
 // serveSSE manages the SSE connection
@@ -74,7 +46,7 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:8080")
+	w.Header().Set("Access-Control-Allow-Origin", getAllowedOrigin(req))
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
 
 	channelName := req.FormValue("channel_name")
@@ -116,7 +88,6 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		bodyString := string(bodyBytes)
-		// fmt.Println("bodyString:", bodyString)
 
 		if bodyString == "true" {
 			authorized = true
@@ -182,9 +153,12 @@ func (srv *Server) serveEvent(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	// req.FormValue
+	//Check API key
+	if req.Header.Get("X-Api-Key") != srv.ApiKey {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
 
-	// curl -I http://localhost:8080/event
 	fmt.Printf("%+v\n", req.FormValue("ChannelName"))
 	ev := &Event{
 		ChannelName: req.Form.Get("ChannelName"),
@@ -202,7 +176,6 @@ func (srv *Server) serveEvent(w http.ResponseWriter, req *http.Request) {
 func (srv *Server) Run() {
 	go srv.Hub.Run()
 
-	http.HandleFunc("/", srv.serveRoot)
 	http.HandleFunc("/sse", srv.serveSSE)
 	http.HandleFunc("/event", srv.serveEvent)
 	err := http.ListenAndServe(srv.ListenPort, nil)
