@@ -10,27 +10,27 @@ import (
 	"strings"
 )
 
-type Server struct {
+type ServerSSE struct {
 	ListenPort     string
 	LaravelAuthURL string
 	Hub            *Hub
-	ApiKey         string
+	AllowedOrigins []string
 }
 
-// NewServer creates a new Server
-func NewServer(listenPort string, laravelAuthURL string, apiKey string) *Server {
-	return &Server{
+// NewServerSSE creates a new server for SSE
+func NewServerSSE(listenPort string, hub *Hub, laravelAuthURL string, allowedOrigins []string) *ServerSSE {
+	return &ServerSSE{
 		ListenPort:     listenPort,
 		LaravelAuthURL: laravelAuthURL,
-		Hub:            NewHub(),
-		ApiKey:         apiKey,
+		Hub:            hub,
+		AllowedOrigins: allowedOrigins,
 	}
 }
 
 // serveSSE manages the SSE connection
-func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
+func (srv *ServerSSE) serveSSE(w http.ResponseWriter, req *http.Request) {
 	if req.Method != "GET" {
-		http.Error(w, "Method not allowed", 405)
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
@@ -43,11 +43,25 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	origin := req.Header.Get("Origin")
+	found := false
+	for _, allowedOrigin := range srv.AllowedOrigins {
+		if origin == allowedOrigin {
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		http.Error(w, "Origin not allowed", http.StatusForbidden)
+		return
+	}
+
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
 	w.Header().Set("Connection", "keep-alive")
-	w.Header().Set("Access-Control-Allow-Origin", getAllowedOrigin(req))
 	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Origin", origin)
 
 	channelName := req.FormValue("channel_name")
 	sid := req.FormValue("sid")
@@ -129,7 +143,12 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 			/*case <-time.After(1 * time.Second):
 			log.Println("ping")*/
 			case event := <-client.ch:
-				json, _ := json.Marshal(event.Payload)
+				json, err := json.Marshal(event.Payload)
+
+				if err != nil {
+					log.Printf("ERROR: json.Marshal: %s", err)
+					return
+				}
 
 				fmt.Fprintf(w, "event: %s\n", event.ChannelName)
 				fmt.Fprintf(w, "data: %s\n", json)
@@ -146,38 +165,14 @@ func (srv *Server) serveSSE(w http.ResponseWriter, req *http.Request) {
 	srv.Hub.Unregister(client)
 }
 
-// serveEvent allow to broadcast an event
-func (srv *Server) serveEvent(w http.ResponseWriter, req *http.Request) {
-	if req.Method != "POST" {
-		http.Error(w, "Method not allowed", 405)
-		return
-	}
-
-	//Check API key
-	if req.Header.Get("X-Api-Key") != srv.ApiKey {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
-
-	fmt.Printf("%+v\n", req.FormValue("ChannelName"))
-	ev := &Event{
-		ChannelName: req.Form.Get("ChannelName"),
-		Socket:      req.Form.Get("socket"),
-		Payload: Payload{
-			Data:  req.Form.Get("payload"),
-			Event: req.Form.Get("event"),
-		},
-	}
-	srv.Hub.Publish(ev)
-
-}
-
 // Run the server
-func (srv *Server) Run() {
-	go srv.Hub.Run()
+func (srv *ServerSSE) Run() {
+	fmt.Printf("SSE server listening on port %s\n", srv.ListenPort)
+	for _, allowedOrigin := range srv.AllowedOrigins {
+		fmt.Printf("Allowed origin: %s\n", allowedOrigin)
+	}
 
 	http.HandleFunc("/sse", srv.serveSSE)
-	http.HandleFunc("/event", srv.serveEvent)
 	err := http.ListenAndServe(srv.ListenPort, nil)
 	if err != nil {
 		log.Fatal(err)

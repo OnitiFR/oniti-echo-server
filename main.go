@@ -5,12 +5,13 @@ import (
 	"fmt"
 )
 
-const Version = "0.0.1"
+const Version = "0.0.2"
 
 func main() {
-	port := flag.Int("p", 8888, "listening port")
+	portEvent := flag.Int("e", 8888, "listening port for events (localhost)")
+	portSSE := flag.Int("s", 8889, "listening port for SSE (all interfaces)")
+	allowedOrigin := flag.String("o", "http://localhost:8080", "default allowed origin, overridden by _DOMAINS env variable (comma separated list of *domains*)")
 	version := flag.Bool("v", false, "show version")
-	apiKey := flag.String("k", "", "api key")
 
 	flag.Parse()
 
@@ -19,11 +20,22 @@ func main() {
 		return
 	}
 
-	// Listen on all interfaces
-	listenPort := fmt.Sprintf(":%d", *port)
+	origins := GetAllowedOrigins()
+	if len(origins) == 0 {
+		origins = []string{*allowedOrigin}
+	}
 
-	fmt.Printf("listening on http://%s/\n", listenPort)
+	listenPortEvent := fmt.Sprintf("localhost:%d", *portEvent)
+	listenPortSSE := fmt.Sprintf(":%d", *portSSE)
 
-	srv := NewServer(listenPort, "http://localhost:8000/broadcasting/auth", getenv("ONITI_ECHO_SERVER_API_KEY", *apiKey))
-	srv.Run()
+	hub := NewHub()
+	serveEvent := NewServerEvent(listenPortEvent, hub)
+	serveSSE := NewServerSSE(listenPortSSE, hub, "http://localhost:8000/broadcasting/auth", origins)
+
+	go hub.Run()
+	go serveEvent.Run()
+	go serveSSE.Run()
+
+	// wait forever
+	select {}
 }
