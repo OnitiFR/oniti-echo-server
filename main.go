@@ -12,6 +12,7 @@ func main() {
 	portSSE := flag.Int("s", 8889, "listening port for SSE (all interfaces)")
 	allowedOrigin := flag.String("o", "http://localhost:8080", "default allowed origin, overridden by _DOMAINS env variable (comma separated list of *domains*)")
 	authUrl := flag.String("a", "http://localhost:8000/broadcasting/auth", "auth url to contact")
+	sidCookieDomain := flag.String("c", "", "cookie domain for 'io' SID session cookie (empty = no header sent)")
 	version := flag.Bool("v", false, "show version")
 
 	flag.Parse()
@@ -31,7 +32,7 @@ func main() {
 
 	hub := NewHub()
 	serveEvent := NewServerEvent(listenPortEvent, hub)
-	serveSSE := NewServerSSE(listenPortSSE, hub, *authUrl, origins)
+	serveSSE := NewServerSSE(listenPortSSE, hub, *authUrl, origins, *sidCookieDomain)
 
 	go hub.Run()
 	go serveEvent.Run()

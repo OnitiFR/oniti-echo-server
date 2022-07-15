@@ -11,19 +11,21 @@ import (
 )
 
 type ServerSSE struct {
-	ListenPort     string
-	LaravelAuthURL string
-	Hub            *Hub
-	AllowedOrigins []string
+	ListenPort      string
+	LaravelAuthURL  string
+	Hub             *Hub
+	AllowedOrigins  []string
+	SIDCookieDomain string
 }
 
 // NewServerSSE creates a new server for SSE
-func NewServerSSE(listenPort string, hub *Hub, laravelAuthURL string, allowedOrigins []string) *ServerSSE {
+func NewServerSSE(listenPort string, hub *Hub, laravelAuthURL string, allowedOrigins []string, sidCookieDomain string) *ServerSSE {
 	return &ServerSSE{
-		ListenPort:     listenPort,
-		LaravelAuthURL: laravelAuthURL,
-		Hub:            hub,
-		AllowedOrigins: allowedOrigins,
+		ListenPort:      listenPort,
+		LaravelAuthURL:  laravelAuthURL,
+		Hub:             hub,
+		AllowedOrigins:  allowedOrigins,
+		SIDCookieDomain: sidCookieDomain,
 	}
 }
 
@@ -117,12 +119,16 @@ func (srv *ServerSSE) serveSSE(w http.ResponseWriter, req *http.Request) {
 
 	// return a new session cookie with SID to identify future client actions
 	sidCookie := &http.Cookie{
-		Name:  "io",
-		Value: sid,
-		// Domain: "localhost", // read this in env ?
+		Name:     "io",
+		Value:    sid,
 		HttpOnly: true,
 		SameSite: http.SameSiteStrictMode,
 	}
+
+	if srv.SIDCookieDomain != "" {
+		sidCookie.Domain = srv.SIDCookieDomain
+	}
+
 	http.SetCookie(w, sidCookie)
 	flusher.Flush()
 
