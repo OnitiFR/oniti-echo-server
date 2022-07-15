@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-const Version = "0.0.2"
+const Version = "0.0.3"
 
 func main() {
 	portEvent := flag.Int("e", 8888, "listening port for events (localhost)")

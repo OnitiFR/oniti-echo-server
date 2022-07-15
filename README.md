@@ -7,3 +7,7 @@ SSE event server for Laravel "vlank" applications
 
 ## Run (dev)
 `go install && oniti-echo-server`
+
+
+## Build & deploy (Oniti only)
+`go build && scp oniti-echo-server files-m2:public_html/data/oniti/`
