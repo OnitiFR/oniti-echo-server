@@ -33,6 +33,7 @@ func main() {
 	serveEvent := NewServerEvent(listenPortEvent, hub)
 	serveSSE := NewServerSSE(listenPortSSE, hub, *authUrl, origins)
 
+	fmt.Printf("starting oniti echo server v%s\n", Version)
 	go hub.Run()
 	go serveEvent.Run()
 	go serveSSE.Run()
