@@ -10,4 +10,4 @@ SSE event server for Laravel "vlank" applications
 
 
 ## Build & deploy (Oniti only)
-`go build && scp oniti-echo-server files-m2:public_html/data/oniti/`
+`CGO_ENABLED=0 go build && scp oniti-echo-server files-m4:public_html/data/oniti/`
